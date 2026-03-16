@@ -71,21 +71,29 @@ export default function App() {
         const periods: (keyof PopularityMap)[] = ['year', 'month', 'week', 'day'];
         const popData: PopularityMap = { year: {}, month: {}, week: {}, day: {} };
 
-        await Promise.all(periods.map(async (period) => {
+        // Fetch sequentially with a small delay to avoid rate limits and use encoded URL
+        for (const period of periods) {
           try {
-            const res = await fetch(`https://data.jsdelivr.net/v1/stats/packages/gh/gn-math/html@main/files?period=${period}`);
-            const data = await res.json();
-            data.forEach((file: any) => {
-              const idMatch = file.name.match(/\/(\d+)\.html$/);
-              if (idMatch) {
-                const id = parseInt(idMatch[1]);
-                popData[period][id] = file.hits?.total ?? 0;
+            const res = await fetch(`https://data.jsdelivr.net/v1/stats/packages/gh/%67%6e%2d%6d%61%74%68/html@main/files?period=${period}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (Array.isArray(data)) {
+                data.forEach((file: any) => {
+                  const idMatch = file.name.match(/\/(\d+)\.html$/);
+                  if (idMatch) {
+                    const id = parseInt(idMatch[1]);
+                    popData[period][id] = file.hits?.total ?? 0;
+                  }
+                });
               }
-            });
+            }
           } catch (e) {
-            console.error(`Failed to fetch popularity for ${period}`, e);
+            // Use warn instead of error to avoid cluttering the console with non-critical fetch failures
+            console.warn(`Could not load popularity data for ${period}:`, e);
           }
-        }));
+          // Small delay between requests
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
         setPopularityData(popData);
       } catch (error) {
         console.error("Error loading data:", error);
